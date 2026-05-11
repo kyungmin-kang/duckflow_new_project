@@ -1,0 +1,4 @@
+interface:
+  display_name: "DuckFlow Manager"
+  short_description: "Route DuckFlow setup, sync, and test work"
+  default_prompt: "Use $duckflow-manager to set up or update this project in DuckFlow end-to-end."

@@ -1,0 +1,77 @@
+schema_version: 1
+exported_at: "2026-05-08T00:00:00+00:00"
+project:
+  id: example-project
+  name: Example project
+  status: Active
+
+  sources:
+    - id: source-external-orders
+      kind: external_manifest
+      upstream_kind: api
+      name: Orders extractor
+      manifest_source_key: orders_api
+      group_name: API snapshots
+      access_mode: snapshot_preview
+      environment_name: null
+      credentials_ref: null
+      load_to_duckdb: false
+      preview_enabled: true
+      query_enabled: false
+      create_summary_stats: false
+      preview_policy: safe_fields_only
+      trigger:
+        mode: ssh_command
+        webhook_url: null
+        command: ./venv/bin/python tools/duckflow/extract_orders_api.py
+        working_directory: /srv/example-project
+        timeout_seconds: 180
+      last_triggered_at: null
+      last_imported_at: null
+      freshness_status: unchecked
+      freshness_note: null
+      last_checked_at: null
+      last_refreshed_at: null
+      changed_table_count: 0
+
+  tables:
+    - id: table-orders
+      source_id: source-external-orders
+      group_name: API snapshots
+      source_name: Orders extractor
+      schema_name: null
+      name: orders
+      columns:
+        - name: order_id
+          data_type: string
+          selection: keep
+        - name: status
+          data_type: string
+          selection: keep
+      primary_key_columns: [order_id]
+      unique_constraints: []
+      index_summaries: []
+      row_count: 12452
+      table_stats:
+        latest_updated_at: "2026-05-08T11:55:00Z"
+      freshness_status: checked
+      freshness_note: Imported from external manifest
+      snapshot_status: ready
+      summary_enabled: true
+      preview_enabled: true
+      query_enabled: false
+      load_to_duckdb: false
+      stage: active
+      validation_status: unknown
+      notes: Orders API metadata imported via external manifest.
+      group_assignments:
+        - grouping_name: Source
+          value: API snapshots
+          subgroup: Orders
+          tag: manifest
+      related_files: []
+      extra_fields: []
+      preview_artifact:
+        format: parquet
+        path: /srv/example-project/tmp/duckflow/orders_preview.parquet
+        row_count: 30

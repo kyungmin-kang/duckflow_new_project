@@ -1,0 +1,287 @@
+schema_version: 1
+exported_at: "2026-05-11T00:00:00+00:00"
+project:
+  id: nyc-real-estate-starter
+  name: NYC Real Estate
+  status: Planned
+  created_at: "2026-05-11T00:00:00+00:00"
+  updated_at: "2026-05-11T00:00:00+00:00"
+
+  hero:
+    goal_summary: Build an NYC real estate operations dashboard and planning workspace.
+    status_summary: Starter project scaffolded for docs, map setup, local API smoke tests, and dashboard wireframe planning.
+    docs:
+      - id: hero-doc-goal
+        title: Project goal
+        path: docs/project-goal.md
+        slot: project_goal
+      - id: hero-doc-principles
+        title: Product principles
+        path: docs/product-principles.md
+        slot: product_principles
+      - id: hero-doc-conventions
+        title: Coding conventions
+        path: docs/coding-conventions.md
+        slot: coding_conventions
+      - id: hero-doc-agents
+        title: Agent rules
+        path: docs/agent-rules.md
+        slot: agent_rules
+      - id: hero-doc-adrs
+        title: Key ADRs
+        path: docs/key-adrs.md
+        slot: key_adrs
+
+  sources:
+    - id: source-external-listings
+      kind: external_manifest
+      upstream_kind: api
+      name: Listings manifest extractor
+      manifest_source_key: listings_api
+      group_name: API snapshots
+      access_mode: snapshot_preview
+      environment_name: null
+      credentials_ref: null
+      load_to_duckdb: false
+      preview_enabled: true
+      query_enabled: false
+      create_summary_stats: false
+      preview_policy: safe_fields_only
+      trigger:
+        mode: local_command
+        webhook_url: null
+        command: python3 tools/duckflow/extract_manifest_example.py
+        working_directory: .
+        timeout_seconds: 180
+      last_triggered_at: null
+      last_imported_at: null
+      freshness_status: unchecked
+      freshness_note: null
+      last_checked_at: null
+      last_refreshed_at: null
+      changed_table_count: 0
+
+  nodes:
+    - id: node-api-listings
+      kind: api
+      label: Listings API
+      description: Local application API for listing and dashboard summary reads.
+      concerns: [data_flow, execution, architecture, work]
+      architecture_facet:
+        runtime_role: api
+        protocol: HTTP
+        placement: web app backend
+        trust_boundary: internal
+        external_dependency: false
+      work_facet:
+        stage: planned
+        validation_status: unknown
+        notes: Keep routes and contracts aligned with the dashboard page plan.
+        group_assignments:
+          - grouping_name: API
+            value: Routes
+            subgroup: Listings
+            tag: local
+            status: null
+        related_files:
+          - id: rel-api-openapi
+            path: openapi/local-api.yaml
+            label: OpenAPI
+            note: Local API contract
+        extra_fields: []
+
+    - id: wireframe-dashboard
+      kind: ui_wireframe
+      label: Dashboard
+      description: Dashboard page wireframe for health and listing summary checks.
+      concerns: [architecture, work]
+      architecture_facet:
+        runtime_role: ui
+        protocol: browser
+        placement: web app
+        trust_boundary: internal
+        external_dependency: false
+      work_facet:
+        stage: planned
+        validation_status: unknown
+        notes: Used for linked API checks in the API tester.
+        group_assignments:
+          - grouping_name: UI
+            value: Pages
+            subgroup: Dashboard
+            tag: planning
+            status: null
+        related_files:
+          - id: rel-pages-doc
+            path: docs/pages.md
+            label: Pages doc
+            note: Dashboard structure
+        extra_fields: []
+
+  edges:
+    - id: edge-listings-api-to-dashboard
+      concern: data_flow
+      kind: runtime_call
+      source_node_id: node-api-listings
+      target_node_id: wireframe-dashboard
+      label: dashboard summary data
+
+  api_targets:
+    - id: api-target-local-app
+      name: Local app
+      mode: browser_local
+      base_url: http://127.0.0.1:3001
+      description: Local project app for browser smoke tests.
+      default_headers: []
+
+  api_tests:
+    - id: api-test-health
+      name: GET /health
+      target_id: api-target-local-app
+      method: GET
+      path: /health
+      query_params: []
+      headers: []
+      body_content_type: application/json
+      body_text: ""
+      contract:
+        expected_status: 200
+        expected_content_type: application/json
+        body_text_contains: ""
+        json_field_rules:
+          - id: rule-health-status
+            path: status
+            required: true
+            expected_type: string
+      notes: Local liveness smoke check.
+      linked_api_node_ids: [node-api-listings]
+      linked_contract_node_ids: [exec-contract-health]
+      linked_page_ids: [page-plan-dashboard]
+
+    - id: api-test-listings-summary
+      name: GET /api/listings/summary
+      target_id: api-target-local-app
+      method: GET
+      path: /api/listings/summary
+      query_params: []
+      headers: []
+      body_content_type: application/json
+      body_text: ""
+      contract:
+        expected_status: 200
+        expected_content_type: application/json
+        body_text_contains: ""
+        json_field_rules:
+          - id: rule-summary-active
+            path: active_listings
+            required: true
+            expected_type: number
+          - id: rule-summary-pending
+            path: pending_listings
+            required: true
+            expected_type: number
+          - id: rule-summary-closed
+            path: closed_last_30_days
+            required: true
+            expected_type: number
+          - id: rule-summary-updated
+            path: updated_at
+            required: true
+            expected_type: string
+      notes: Dashboard summary contract.
+      linked_api_node_ids: [node-api-listings]
+      linked_contract_node_ids: [exec-contract-listings-summary]
+      linked_page_ids: [page-plan-dashboard]
+
+  api_suites:
+    - id: api-suite-dashboard-smoke
+      name: Dashboard smoke
+      test_ids:
+        - api-test-health
+        - api-test-listings-summary
+      notes: Run before validating the dashboard page wireframe.
+
+  api_page_plans:
+    - id: page-plan-dashboard
+      wireframe_node_id: wireframe-dashboard
+      route_path: /dashboard
+      notes: Starter dashboard page plan with linked smoke tests.
+      components:
+        - id: comp-health-banner
+          label: Health banner
+          kind: status
+          grid_x: 0
+          grid_y: 0
+          grid_w: 12
+          grid_h: 2
+          load_behavior: initial
+          linked_test_ids: [api-test-health]
+        - id: comp-kpi-strip
+          label: Inventory KPI strip
+          kind: metric_strip
+          grid_x: 0
+          grid_y: 2
+          grid_w: 12
+          grid_h: 2
+          load_behavior: initial
+          linked_test_ids: [api-test-listings-summary]
+        - id: comp-listings-summary
+          label: Listings summary table
+          kind: table
+          grid_x: 0
+          grid_y: 4
+          grid_w: 8
+          grid_h: 5
+          load_behavior: lazy
+          linked_test_ids: [api-test-listings-summary]
+        - id: comp-market-status
+          label: Market status panel
+          kind: panel
+          grid_x: 8
+          grid_y: 4
+          grid_w: 4
+          grid_h: 5
+          load_behavior: background
+          linked_test_ids: [api-test-listings-summary]
+
+  execution_control_nodes:
+    - id: exec-contract-health
+      kind: api_contract
+      subview: contracts
+      title: Health endpoint contract
+      summary: Basic liveness response contract.
+      notes: Basic liveness response contract.
+      file_path: docs/api-contracts.md
+      module_path: null
+      owner: null
+      status: null
+      x: 0
+      y: 0
+    - id: exec-contract-listings-summary
+      kind: api_contract
+      subview: contracts
+      title: Listings summary contract
+      summary: Dashboard inventory summary response contract.
+      notes: Dashboard inventory summary response contract.
+      file_path: docs/api-contracts.md
+      module_path: null
+      owner: null
+      status: null
+      x: 240
+      y: 0
+
+  execution_control_edges:
+    - id: exec-edge-health
+      subview: contracts
+      kind: implements
+      source_node_id: node-api-listings
+      target_node_id: exec-contract-health
+      label: implements
+      notes: Listings API exposes the health contract.
+    - id: exec-edge-summary
+      subview: contracts
+      kind: implements
+      source_node_id: node-api-listings
+      target_node_id: exec-contract-listings-summary
+      label: implements
+      notes: Listings API exposes the dashboard summary contract.

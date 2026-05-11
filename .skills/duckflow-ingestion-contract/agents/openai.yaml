@@ -1,0 +1,4 @@
+interface:
+  display_name: "DuckFlow Ingestion Contract"
+  short_description: "Produce external ingestion manifests and hooks"
+  default_prompt: "Use $duckflow-ingestion-contract to define or implement the extractor contract for DuckFlow."

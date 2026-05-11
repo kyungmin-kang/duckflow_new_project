@@ -1,0 +1,695 @@
+# Full-fidelity project YAML template.
+# This is the AI interchange format for the app.
+#
+# Conventions:
+# - Use one full file, or split the same shape across multiple files and load them with
+#   merge_mode = append | intersection | replace.
+# - Every split file should keep the same top-level "project" metadata block and include only
+#   the sections it owns.
+# - Group / subgroup / tag notes are stored in project.group_notes.
+# - Table profiling, snapshots, keep/drop selections, related files, and typed edges are all part
+#   of the persisted project model.
+schema_version: 1
+exported_at: "2026-05-05T00:00:00+00:00"
+project:
+  id: example-project
+  name: Example project
+  status: Planned
+  created_at: "2026-05-05T00:00:00+00:00"
+  updated_at: "2026-05-05T00:00:00+00:00"
+
+  environment:
+    ssh_connection:
+      host: app-vps
+      port: 22
+      user: deploy
+      identity_file: /Users/example/.ssh/id_ed25519
+      root_path: /srv/example-project
+    db_connections:
+      - id: db-conn-001
+        name: Analytics Postgres
+        database_type: postgres
+        network_target: ssh
+        host: 127.0.0.1
+        port: 5432
+        database_name: analytics
+        user: analytics_ro
+        password_ref: null
+        default_schema: public
+      - id: db-conn-002
+        name: Local DuckDB workspace
+        database_type: duckdb
+        network_target: server
+        path: /srv/example-project/.duckflow/example.duckdb
+        default_schema: main
+    secrets:
+      # Current app fields.
+      # Treat these as local-dev convenience or legacy implementation detail,
+      # not as the preferred trust boundary for serious project setup.
+      preferred_provider: env_file
+      env_file_path: null
+      bitwarden_enabled: false
+      bitwarden_profile: null
+    save_preferences:
+      autosave_interval_seconds: 10
+    local_root_path: /Users/example/work/example-project
+    active_filesystem_target: server
+
+  hero:
+    goal_summary: Build an inventory-aware operations dashboard backed by internal APIs and staged data.
+    status_summary: Planning and validation are active; ingestion manifests provide source metadata snapshots.
+    docs:
+      - id: hero-doc-001
+        title: Project goal
+        path: docs/project-goal.md
+        slot: project_goal
+      - id: hero-doc-002
+        title: Product principles
+        path: docs/product-principles.md
+        slot: product_principles
+      - id: hero-doc-003
+        title: Coding conventions
+        path: docs/coding-conventions.md
+        slot: coding_conventions
+      - id: hero-doc-004
+        title: Agent rules
+        path: docs/agent-rules.md
+        slot: agent_rules
+      - id: hero-doc-005
+        title: Key ADRs
+        path: docs/key-adrs.md
+        slot: key_adrs
+
+  database_catalogs:
+    - connection_id: db-conn-001
+      connection_name: Analytics Postgres
+      database_type: postgres
+      database_label: analytics
+      network_target: ssh
+      default_schema: public
+      refreshed_at: "2026-05-05T00:00:00+00:00"
+      schemas:
+        - name: public
+          tables:
+            - id: catalog-public-listings
+              schema_name: public
+              name: listings
+              columns:
+                - name: listing_id
+                  data_type: BIGINT
+                  selection: keep
+                - name: status
+                  data_type: VARCHAR
+                  selection: keep
+
+  custom_views:
+    - id: custom-view-001
+      name: Backend workbench
+      base_view_kind: workbench
+      primary_grouping_name: Backend
+      secondary_grouping_name: API
+      filters:
+        node_kinds: [table, api, service]
+        stages: []
+        validation_statuses: []
+        freshness_statuses: []
+        group_filters: []
+      visible_edge_kinds: [data_lineage, runtime_call, ownership_reference]
+
+  sources:
+    - id: source-file-001
+      kind: file
+      path: /absolute/path/to/source.csv
+      group_name: Raw
+      create_summary_stats: false
+      freshness_status: unchecked
+      freshness_note: null
+      last_checked_at: null
+      last_refreshed_at: null
+      changed_table_count: 0
+    - id: source-postgres-001
+      kind: postgres
+      # Warning:
+      # - Use a read-only account.
+      # - Do not point DuckFlow at confidential or user-sensitive production data unless explicitly intended.
+      connection: postgresql://user:password@host:5432/dbname
+      schema: public
+      create_summary_stats: false
+      freshness_status: unchecked
+      freshness_note: null
+      last_checked_at: null
+      last_refreshed_at: null
+      changed_table_count: 0
+    - id: source-external-001
+      kind: external_manifest
+      upstream_kind: api
+      name: Orders extractor
+      manifest_source_key: orders_api
+      group_name: API snapshots
+      access_mode: snapshot_preview
+      environment_name: null
+      credentials_ref: null
+      load_to_duckdb: false
+      preview_enabled: true
+      query_enabled: false
+      create_summary_stats: false
+      preview_policy: safe_fields_only
+      trigger:
+        mode: ssh_command
+        webhook_url: null
+        command: ./venv/bin/python tools/duckflow/extract_orders_api.py
+        working_directory: /srv/example-project
+        timeout_seconds: 180
+      last_triggered_at: null
+      last_imported_at: null
+      freshness_status: unchecked
+      freshness_note: null
+      last_checked_at: null
+      last_refreshed_at: null
+      changed_table_count: 0
+
+  nodes:
+    - id: node-api-001
+      kind: api
+      label: Inventory API
+      description: Public inventory contract and query surface.
+      concerns: [data_flow, execution, architecture, work]
+      flow_facet:
+        outputs:
+          - id: output-001
+            name: active_inventory_count
+            data_type: integer
+            signature: "GET /inventory/active"
+            selection: keep
+            input_refs:
+              - listings.status
+              - listings.list_date
+            leads_to_refs:
+              - ui_dashboard.metric_card
+            decisions: Count listings where status = active.
+            related_files:
+              - id: rel-file-001
+                path: /repo/backend/routes/inventory.py
+                label: Inventory route
+                note: Endpoint handler
+      execution_facet:
+        trigger_type: request
+        schedule: null
+        execution_mode: request-time
+        owner: backend
+        retry_policy: null
+        timeout_seconds: 30
+        environment: production
+        last_run_at: null
+        run_status: null
+        upstream_semantics: Query-serving API.
+        downstream_semantics: Powers dashboards and client apps.
+      architecture_facet:
+        runtime_role: api
+        protocol: HTTP
+        placement: app cluster
+        trust_boundary: internal
+        external_dependency: false
+      work_facet:
+        stage: planned
+        validation_status: unknown
+        notes: API contract still under design.
+        update_frequency: ad hoc
+        assignee: null
+        due_date: null
+        priority: null
+        milestone: null
+        sprint: null
+        acceptance_criteria: null
+        review_state: null
+        group_assignments:
+          - grouping_name: API
+            value: Routes
+            subgroup: Inventory
+            tag: read-model
+            status: null
+        related_files:
+          - id: rel-file-002
+            path: /repo/openapi/inventory.yaml
+            label: OpenAPI
+            note: Contract source
+        extra_fields:
+          - id: meta-001
+            name: owner_team
+            value: pricing-platform
+    - id: wireframe-frontpage-001
+      kind: ui_wireframe
+      label: Frontpage
+      description: Inventory-aware dashboard wireframe used for API/page planning.
+      concerns: [architecture, work]
+      architecture_facet:
+        runtime_role: ui
+        protocol: browser
+        placement: web app
+        trust_boundary: internal
+        external_dependency: false
+      work_facet:
+        stage: planned
+        validation_status: unknown
+        notes: Wireframe plan aligns API smoke checks with initial/lazy/background component loads.
+        update_frequency: ad hoc
+        assignee: null
+        due_date: null
+        priority: null
+        milestone: null
+        sprint: null
+        acceptance_criteria: null
+        review_state: null
+        group_assignments:
+          - grouping_name: Task
+            value: Frontend
+            subgroup: Dashboard
+            tag: wireframe
+            status: null
+        related_files: []
+        extra_fields: []
+
+  edges:
+    - id: edge-001
+      concern: architecture
+      kind: runtime_call
+      source_node_id: client-app-001
+      target_node_id: node-api-001
+      source_endpoint: null
+      target_endpoint: null
+      label: fetches inventory summary
+      relationship_type: HTTP
+      notes: Browser calls API over authenticated session.
+    - id: edge-002
+      concern: data_flow
+      kind: data_lineage
+      source_node_id: table-listings-001
+      target_node_id: node-api-001
+      source_endpoint:
+        kind: column
+        name: status
+        field_id: null
+      target_endpoint:
+        kind: output
+        name: active_inventory_count
+        field_id: output-001
+      label: null
+      relationship_type: derived
+      notes: Aggregated active inventory logic.
+
+  tables:
+    - id: table-listings-001
+      source_id: source-file-001
+      group_name: Raw
+      source_name: /absolute/path/to/source.csv
+      name: listings
+      fingerprint: table-listings-001
+      locator:
+        kind: file
+        path: /absolute/path/to/source.csv
+        format: csv
+        zip_member: null
+        connection: null
+        schema_name: null
+        external_name: null
+      columns:
+        - name: listing_id
+          data_type: BIGINT
+          selection: keep
+        - name: status
+          data_type: VARCHAR
+          selection: keep
+        - name: list_date
+          data_type: DATE
+          selection: keep
+      row_count: null
+      cached_profiles:
+        - name: listing_id
+          data_type: BIGINT
+          missing_pct: 0
+          min: "1"
+          max: "999999"
+          mean: 500000
+          std: 200000
+      table_stats:
+        latest_file_partition: "2026-05-01"
+      preview_rows:
+        - listing_id: 123
+          status: active
+          list_date: "2026-05-01"
+      preview_artifact: null
+      data_fingerprint: null
+      last_seen_data_fingerprint: null
+      freshness_status: unchecked
+      freshness_note: null
+      snapshot_status: missing
+      preview_enabled: true
+      query_enabled: true
+      load_to_duckdb: false
+      summary_enabled: false
+      last_checked_at: null
+      last_refreshed_at: null
+      stage: planned
+      validation_status: unknown
+      notes: null
+      update_frequency: daily
+      assignee: null
+      due_date: null
+      priority: null
+      milestone: null
+      sprint: null
+      acceptance_criteria: null
+      review_state: null
+      group_assignments:
+        - grouping_name: Backend
+          value: Sources
+          subgroup: Listings
+          tag: raw-feed
+          status: null
+      related_files:
+        - id: rel-file-003
+          path: /repo/sql/staging/listings.sql
+          label: Staging SQL
+          note: Initial cleanup
+      extra_fields:
+        - id: meta-002
+          name: owner_team
+          value: data-eng
+    - id: table-orders-001
+      source_id: source-external-001
+      group_name: API snapshots
+      source_name: Orders extractor
+      schema_name: null
+      name: orders
+      fingerprint: manifest-orders-001
+      locator:
+        kind: external_manifest
+        path: /srv/example-project/.duckflow/orders_preview.parquet
+        format: parquet
+        zip_member: null
+        connection: null
+        schema_name: null
+        external_name: orders
+        manifest_source_key: orders_api
+        table_key: orders
+      columns:
+        - name: order_id
+          data_type: VARCHAR
+          selection: keep
+          nullable: false
+        - name: status
+          data_type: VARCHAR
+          selection: keep
+          nullable: true
+      row_count: 12452
+      cached_profiles:
+        - name: status
+          data_type: VARCHAR
+          missing_pct: 0.1
+          min: active
+          max: shipped
+          mean: null
+          std: null
+      table_stats:
+        latest_updated_at: "2026-05-05T00:00:00+00:00"
+        null_status_count: 14
+      preview_rows:
+        - order_id: A123
+          status: paid
+      preview_artifact:
+        format: parquet
+        path: /srv/example-project/.duckflow/orders_preview.parquet
+        uri: null
+        table_name: null
+        row_count: 30
+        note: Typed preview sample from the real project extractor.
+      data_fingerprint: orders-2026-05-05
+      last_seen_data_fingerprint: orders-2026-05-05
+      freshness_status: fresh
+      freshness_note: null
+      snapshot_status: ready
+      summary_enabled: true
+      preview_enabled: true
+      query_enabled: false
+      load_to_duckdb: false
+      last_checked_at: "2026-05-05T00:00:00+00:00"
+      last_refreshed_at: "2026-05-05T00:00:00+00:00"
+      stage: planned
+      validation_status: unknown
+      notes: Preview excludes customer PII.
+      update_frequency: on-demand
+      assignee: null
+      due_date: null
+      priority: null
+      milestone: null
+      sprint: null
+      acceptance_criteria: null
+      review_state: null
+      group_assignments:
+        - grouping_name: Backend
+          value: Sources
+          subgroup: Orders
+          tag: api-preview
+          status: null
+      related_files: []
+      extra_fields: []
+
+  compute_nodes:
+    - id: node-api-001
+      kind: api
+      name: Inventory API
+      description: Public inventory contract and query surface.
+      stage: planned
+      validation_status: unknown
+      notes: API contract still under design.
+      update_frequency: ad hoc
+      assignee: null
+      due_date: null
+      priority: null
+      milestone: null
+      sprint: null
+      acceptance_criteria: null
+      review_state: null
+      trigger_type: request
+      schedule: null
+      owner: backend
+      retry_policy: null
+      timeout_seconds: 30
+      environment: production
+      last_run_at: null
+      run_status: null
+      upstream_semantics: Query-serving API.
+      downstream_semantics: Powers dashboards and client apps.
+      runtime_role: api
+      protocol: HTTP
+      placement: app cluster
+      trust_boundary: internal
+      external_dependency: false
+      outputs:
+        - id: output-001
+          name: active_inventory_count
+          data_type: integer
+          signature: "GET /inventory/active"
+          selection: keep
+          input_refs:
+            - listings.status
+            - listings.list_date
+          leads_to_refs:
+            - ui_dashboard.metric_card
+          decisions: Count listings where status = active.
+          related_files:
+            - id: rel-file-004
+              path: /repo/backend/routes/inventory.py
+              label: Route logic
+              note: Output implementation
+      group_assignments:
+        - grouping_name: API
+          value: Routes
+          subgroup: Inventory
+          tag: read-model
+          status: null
+      related_files:
+        - id: rel-file-005
+          path: /repo/openapi/inventory.yaml
+          label: OpenAPI
+          note: Contract source
+      extra_fields:
+        - id: meta-003
+          name: review_owner
+          value: platform-arch
+
+  dependencies:
+    - id: edge-002
+      source_table_id: table-listings-001
+      source_column_name: status
+      target_table_id: node-api-001
+      target_column_name: active_inventory_count
+      relationship_type: derived
+      notes: Aggregated active inventory logic.
+
+  api_targets:
+    - id: api-target-001
+      name: DuckFlow local backend
+      mode: browser_local
+      base_url: http://127.0.0.1:8000
+      description: Local backend target for smoke checks.
+      default_headers: []
+      cf_access_client_id_ref: null
+      cf_access_client_secret_ref: null
+
+  api_tests:
+    - id: api-test-001
+      name: GET /health
+      target_id: api-target-001
+      method: GET
+      path: /health
+      query_params: []
+      headers: []
+      body_content_type: application/json
+      body_text: null
+      contract:
+        expected_status: 200
+        expected_content_type: application/json
+        body_text_contains: null
+        json_field_rules:
+          - id: api-json-rule-001
+            path: status
+            required: true
+            expected_type: string
+            exact_value: ok
+      notes: Baseline liveness check.
+      linked_api_node_ids: [node-api-001]
+      linked_contract_node_ids: []
+      linked_page_ids: [wireframe-frontpage-001]
+      last_run_at: null
+      last_status_code: null
+      last_duration_ms: null
+      last_contract_ok: null
+      last_error: null
+
+  api_suites:
+    - id: api-suite-001
+      name: Dashboard smoke
+      test_ids: [api-test-001]
+      notes: Core smoke checks for dashboard load prerequisites.
+
+  api_page_plans:
+    - id: api-page-plan-001
+      wireframe_node_id: wireframe-frontpage-001
+      route_path: /dashboard
+      notes: Page plan showing initial and background API-driven components.
+      components:
+        - id: page-component-001
+          label: Health banner
+          kind: status
+          grid_x: 0
+          grid_y: 0
+          grid_w: 12
+          grid_h: 2
+          load_behavior: initial
+          linked_test_ids: [api-test-001]
+          notes: Show service status immediately.
+        - id: page-component-002
+          label: Projects list
+          kind: table
+          grid_x: 0
+          grid_y: 2
+          grid_w: 7
+          grid_h: 5
+          load_behavior: initial
+          linked_test_ids: []
+          notes: Render project records after initial shell load.
+        - id: page-component-003
+          label: System health panel
+          kind: panel
+          grid_x: 7
+          grid_y: 2
+          grid_w: 5
+          grid_h: 5
+          load_behavior: background
+          linked_test_ids: [api-test-001]
+          notes: Background refresh after shell render.
+
+  execution_control_nodes:
+    - id: ctrl-001
+      subview: contracts
+      kind: api_contract
+      title: Inventory API contract
+      summary: Defines the stable API response shape for dashboard metrics.
+      notes: Keep aligned with OpenAPI and linked API tests.
+      module_path: /repo/openapi/inventory.yaml
+      file_path: /repo/openapi/inventory.yaml
+      owner: backend
+      status: active
+      x: 120
+      y: 80
+    - id: ctrl-002
+      subview: deployment
+      kind: cloudflare_tunnel
+      title: Cloudflare edge route
+      summary: Edge tunnel or ingress path for the deployed app.
+      notes: Authentication specifics are managed separately from external ingestion.
+      module_path: null
+      file_path: null
+      owner: platform
+      status: planned
+      x: 420
+      y: 80
+
+  execution_control_edges:
+    - id: ctrle-001
+      subview: contracts
+      kind: validates
+      source_node_id: ctrl-001
+      target_node_id: ctrl-001
+      label: self-check
+      notes: Example placeholder validation relation.
+    - id: ctrle-002
+      subview: deployment
+      kind: connects_to
+      source_node_id: ctrl-002
+      target_node_id: ctrl-001
+      label: routes protected traffic
+      notes: Example deployment relation.
+
+  view_layouts:
+    - view_kind: workbench
+      grouping_name: Backend
+      item_kind: group
+      item_id: group:Backend:Sources
+      group_value: Sources
+      x: 120
+      y: 220
+      width: 420
+      height: 520
+    - view_kind: workbench
+      grouping_name: Backend
+      item_kind: node
+      item_id: table-listings-001
+      group_value: Sources
+      x: 18
+      y: 72
+      width: 336
+      height: 248
+
+  group_notes:
+    - grouping_name: Backend
+      value: Sources
+      subgroup: Listings
+      tag: raw-feed
+      note: Raw MLS extracts land here before staging cleanup.
+    - grouping_name: Task
+      value: Tasks
+      subgroup: Backfill
+      tag: sprint-8
+      note: Backfill is blocked on historical completeness validation.
+
+  history:
+    - id: history-001
+      actor: master
+      created_at: "2026-05-05T00:00:00+00:00"
+      entity_kind: project
+      entity_id: example-project
+      summary: Initial project template
+      details:
+        source: docs/project-template.yaml

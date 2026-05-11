@@ -1,0 +1,45 @@
+version: 1
+entry_agent: duckflow-manager
+
+agents:
+  - id: duckflow-manager
+    description: Single entrypoint for DuckFlow setup, synchronization, testing, and YAML work.
+    prompt_file: agents/duckflow-manager.md
+    reserved_directory: agents/
+    delegates_to_skills:
+      - .skills/duckflow-project-setup
+      - .skills/duckflow-api-wireframe
+      - .skills/duckflow-ingestion-contract
+  - id: duckflow-manager-start
+    description: Convenience alias for starting or bootstrapping a new project in DuckFlow.
+    prompt_file: agents/duckflow-manager-start.md
+    reserved_directory: agents/
+    delegates_to_skills:
+      - .skills/duckflow-project-setup
+      - .skills/duckflow-api-wireframe
+      - .skills/duckflow-ingestion-contract
+
+skills:
+  - id: duckflow-project-setup
+    path: .skills/duckflow-project-setup
+    owns:
+      - hero
+      - sources
+      - tables
+      - nodes
+      - edges
+      - execution_control
+      - yaml
+  - id: duckflow-api-wireframe
+    path: .skills/duckflow-api-wireframe
+    owns:
+      - api_targets
+      - api_tests
+      - api_suites
+      - api_page_plans
+  - id: duckflow-ingestion-contract
+    path: .skills/duckflow-ingestion-contract
+    owns:
+      - external_manifest_sources
+      - manifest_contracts
+      - extractor_handoffs

@@ -1,0 +1,4 @@
+interface:
+  display_name: "DuckFlow Project Setup"
+  short_description: "Build and maintain DuckFlow project state"
+  default_prompt: "Use $duckflow-project-setup to create or refresh a project map, execution graph, and YAML bundle."

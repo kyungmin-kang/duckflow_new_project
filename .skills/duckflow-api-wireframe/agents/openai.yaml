@@ -1,0 +1,4 @@
+interface:
+  display_name: "DuckFlow API and Wireframes"
+  short_description: "Maintain API tests, suites, and page plans"
+  default_prompt: "Use $duckflow-api-wireframe to set up API targets, suites, and page wireframe plans."

@@ -1,0 +1,76 @@
+schema_version: 1
+exported_at: "2026-05-08T00:00:00+00:00"
+project:
+  id: example-project
+  name: Example project
+  status: Active
+
+  api_targets:
+    - id: api-target-local
+      name: Local backend
+      mode: browser_local
+      base_url: http://127.0.0.1:8000
+      description: Local development backend.
+      default_headers: []
+
+  api_tests:
+    - id: api-test-health
+      name: GET /health
+      target_id: api-target-local
+      method: GET
+      path: /health
+      query_params: []
+      headers: []
+      body_content_type: application/json
+      body_text: ""
+      contract:
+        expected_status: 200
+        expected_content_type: application/json
+        body_text_contains: ""
+        json_field_rules: []
+      linked_api_node_ids: [node-api-inventory]
+      linked_contract_node_ids: [exec-contract-inventory]
+      linked_page_ids: [page-plan-frontpage]
+
+  api_suites:
+    - id: api-suite-smoke
+      name: Dashboard smoke
+      test_ids:
+        - api-test-health
+      notes: Run before validating dashboard page behavior.
+
+  api_page_plans:
+    - id: page-plan-frontpage
+      wireframe_node_id: wireframe-frontpage
+      route_path: /development-dashboard
+      notes: Basic dashboard page load plan.
+      components:
+        - id: comp-health
+          label: Health banner
+          kind: status
+          grid_x: 0
+          grid_y: 0
+          grid_w: 12
+          grid_h: 2
+          load_behavior: initial
+          linked_test_ids: [api-test-health]
+
+  nodes:
+    - id: wireframe-frontpage
+      kind: ui_wireframe
+      label: Frontpage
+      description: Dashboard wireframe.
+      concerns: [architecture, work]
+      architecture_facet:
+        runtime_role: ui
+        protocol: browser
+        placement: web app
+        trust_boundary: internal
+        external_dependency: false
+      work_facet:
+        stage: planned
+        validation_status: unknown
+        notes: Page plan used for smoke checks.
+        group_assignments: []
+        related_files: []
+        extra_fields: []

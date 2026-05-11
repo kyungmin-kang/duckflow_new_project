@@ -1,0 +1,50 @@
+schema_version: 1
+exported_at: "2026-05-08T00:00:00+00:00"
+project:
+  id: example-project
+  name: Example project
+  status: Active
+
+  environment:
+    ssh_connection:
+      host: app-vps
+      port: 22
+      user: deploy
+      identity_file: /Users/example/.ssh/id_ed25519
+      root_path: /srv/example-project
+    db_connections:
+      - id: db-conn-analytics
+        name: Analytics Postgres
+        database_type: postgres
+        network_target: ssh
+        host: 127.0.0.1
+        port: 5432
+        database_name: analytics
+        user: analytics_ro
+        password_ref: null
+        default_schema: public
+    secrets:
+      # Current app fields, but treat as local-dev convenience, not the serious trust boundary.
+      preferred_provider: env_file
+      env_file_path: null
+      bitwarden_enabled: false
+      bitwarden_profile: null
+    local_root_path: /Users/example/work/example-project
+    active_filesystem_target: server
+
+  hero:
+    goal_summary: Build an inventory-aware operations dashboard.
+    status_summary: Planning and smoke-test setup are active.
+    docs:
+      - id: hero-doc-goal
+        title: Project goal
+        path: docs/project-goal.md
+        slot: project_goal
+      - id: hero-doc-principles
+        title: Product principles
+        path: docs/product-principles.md
+        slot: product_principles
+      - id: hero-doc-agents
+        title: Agent rules
+        path: docs/agent-rules.md
+        slot: agent_rules

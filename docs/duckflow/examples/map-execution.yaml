@@ -1,0 +1,105 @@
+schema_version: 1
+exported_at: "2026-05-08T00:00:00+00:00"
+project:
+  id: example-project
+  name: Example project
+  status: Active
+
+  sources:
+    - id: source-postgres-001
+      kind: postgres
+      # Use a read-only account and avoid confidential/user-sensitive data unless explicitly intended.
+      connection: postgresql://analytics_ro@127.0.0.1:5432/analytics
+      schema: public
+      create_summary_stats: false
+      freshness_status: unchecked
+      freshness_note: null
+      last_checked_at: null
+      last_refreshed_at: null
+      changed_table_count: 0
+
+  tables:
+    - id: table-listings
+      source_id: source-postgres-001
+      group_name: Raw
+      source_name: Analytics Postgres
+      schema_name: public
+      name: listings
+      columns:
+        - name: listing_id
+          data_type: BIGINT
+          selection: keep
+        - name: status
+          data_type: VARCHAR
+          selection: keep
+      primary_key_columns: [listing_id]
+      unique_constraints: []
+      index_summaries: []
+      row_count: 120044
+      table_stats:
+        active_count: 98211
+      freshness_status: checked
+      freshness_note: Snapshot imported from source
+      snapshot_status: ready
+      summary_enabled: true
+      preview_enabled: true
+      query_enabled: true
+      load_to_duckdb: true
+      stage: active
+      validation_status: unknown
+      notes: Source table for listing activity.
+      group_assignments:
+        - grouping_name: Source
+          value: Raw
+          subgroup: Listings
+          tag: core
+      related_files: []
+      extra_fields: []
+
+  nodes:
+    - id: node-api-inventory
+      kind: api
+      label: Inventory API
+      description: Query-serving API for active inventory.
+      concerns: [data_flow, execution, architecture, work]
+      architecture_facet:
+        runtime_role: api
+        protocol: HTTP
+        placement: app cluster
+        trust_boundary: internal
+        external_dependency: false
+      work_facet:
+        stage: active
+        validation_status: unknown
+        notes: Serves dashboard inventory summaries.
+        group_assignments:
+          - grouping_name: API
+            value: Routes
+            subgroup: Inventory
+            tag: read-model
+        related_files: []
+        extra_fields: []
+
+  edges:
+    - id: edge-listings-to-api
+      concern: data_flow
+      kind: runtime_call
+      source_node_id: table-listings
+      target_node_id: node-api-inventory
+      label: inventory summary query
+
+  execution_control_nodes:
+    - id: exec-contract-inventory
+      kind: api_contract
+      label: Inventory response contract
+      notes: GET inventory contract for dashboard widgets.
+      subview: contracts
+      related_files: []
+      extra_fields: []
+
+  execution_control_edges:
+    - id: exec-edge-inventory
+      kind: implements
+      source_node_id: node-api-inventory
+      target_node_id: exec-contract-inventory
+      notes: API implements response contract.

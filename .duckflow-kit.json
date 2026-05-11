@@ -1,0 +1,22 @@
+{
+  "source_repo": "/Users/kmkang/Documents/New Projects/AppDevVisualization/my-react-flow-app",
+  "copied": [
+    ".agents",
+    ".agents.md",
+    ".agents.yml",
+    ".skills",
+    "docs/duckflow/README.md",
+    "docs/duckflow/coding-agent-ingestion-instructions.md",
+    "docs/duckflow/duckflow-agent-definition-guide.md",
+    "docs/duckflow/duckflow-agent-system-guide.md",
+    "docs/duckflow/duckflow-manager-agent-spec.md",
+    "docs/duckflow/duckflow-project-operator-playbook.md",
+    "docs/duckflow/duckflow-yaml-bundle-examples.md",
+    "docs/duckflow/examples",
+    "docs/duckflow/external-ingestion-contract-v1-plan.md",
+    "docs/duckflow/operator-notes.md",
+    "docs/duckflow/project-template.yaml",
+    "duckflow.project.yaml",
+    "tools"
+  ]
+}
